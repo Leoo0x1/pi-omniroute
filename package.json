@@ -1,0 +1,14 @@
+{
+	"name": "pi-omniroute",
+	"version": "0.1.0",
+	"description": "OmniRoute provider for pi — connect to a local OmniRoute router (https://github.com/diegosouzapw/OmniRoute)",
+	"type": "module",
+	"main": "index.ts",
+	"keywords": ["pi-package"],
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"pi": {
+		"extensions": ["index.ts"]
+	}
+}
