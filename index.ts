@@ -130,15 +130,17 @@ async function probeLevels(
 			return false;
 		}
 	};
-	// Baseline without the parameter: if this fails the probe says nothing.
-	if (!(await post(base))) return undefined;
-	// Fire all level probes in parallel — each is a tiny 1-token request.
+	// Fire baseline + all level probes in a single parallel batch.
+	// If the baseline fails the model is unreachable and the probe says nothing,
+	// no matter what the level requests returned.
 	const levels = PI_LEVELS.filter((l) => l !== "off");
-	const results = await Promise.all(
-		levels.map(async (level) => ({ level, ok: await post({ ...base, reasoning_effort: level }) })),
-	);
+	const [baselineOk, ...levelResults] = await Promise.all([
+		post(base),
+		...levels.map((level) => post({ ...base, reasoning_effort: level }).then((ok) => ({ level, ok }))),
+	]);
+	if (!baselineOk) return undefined;
 	const map: Record<string, string | null> = {};
-	for (const { level, ok } of results) {
+	for (const { level, ok } of levelResults) {
 		if (ok) {
 			// xhigh/max are opt-in in pi: they need explicit non-null entries
 			if (level === "xhigh" || level === "max") map[level] = level;
