@@ -188,6 +188,9 @@ async function autoProbe(
 		ctx.ui.notify(`OmniRoute: probing thinking levels for ${model.id}…`, "info");
 		const map = await probeLevels(cfg.url, cfg.apiKey, model.id);
 		if (map && applyProbe(pi, model.id, map)) {
+			// Patch the live session model object too — the UI (footer, cycling,
+			// settings selector) reads thinkingLevelMap off it at call time.
+			model.thinkingLevelMap = map;
 			ctx.ui.notify(`OmniRoute: thinking map saved for ${model.id}`, "info");
 		} else if (!map) {
 			ctx.ui.notify(`OmniRoute: probe inconclusive for ${model.id} (baseline request failed)`, "warning");
