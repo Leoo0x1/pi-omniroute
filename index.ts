@@ -61,7 +61,7 @@ function writeModelsJson(url: string, apiKey: string | undefined, ids: string[])
 		baseUrl: url,
 		api: "openai-completions",
 		apiKey: apiKey ?? "omniroute",
-		models: ids.map((id) => ({ id })),
+		models: ids.map((id) => ({ id, reasoning: true })),
 	};
 	writeFileSync(MODELS_JSON_PATH, JSON.stringify(doc, null, "\t"));
 }
