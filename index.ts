@@ -146,9 +146,9 @@ async function probeLevels(
 }
 
 /** Save the probed map into models.json (only if the entry has no map yet)
- *  and hot-apply the provider so no /reload is needed. */
+ *  and hot-apply it to the live registry so no /reload is needed. */
 function applyProbe(
-	pi: ExtensionAPI,
+	registry: { registerProvider(name: string, config: unknown): void },
 	modelId: string,
 	map: Record<string, string | null>,
 ): boolean {
@@ -163,7 +163,7 @@ function applyProbe(
 	if (!entry || !model || model.thinkingLevelMap !== undefined) return false;
 	model.thinkingLevelMap = map;
 	writeFileSync(MODELS_JSON_PATH, JSON.stringify(doc, null, "\t"));
-	pi.registerProvider(PROVIDER, {
+	registry.registerProvider(PROVIDER, {
 		baseUrl: entry.baseUrl!,
 		apiKey: entry.apiKey!,
 		api: (entry.api ?? "openai-completions") as "openai-completions",
@@ -176,9 +176,11 @@ let probing = false;
 
 /** Auto-probe the selected model if it's an omniroute model without a thinkingLevelMap. */
 async function autoProbe(
-	pi: ExtensionAPI,
+	ctx: {
+		modelRegistry: { registerProvider(name: string, config: unknown): void };
+		ui: { notify(msg: string, level?: string): void };
+	},
 	model: { provider: string; id: string; thinkingLevelMap?: unknown },
-	ctx: { ui: { notify(msg: string, level?: string): void } },
 ): Promise<void> {
 	const cfg = loadConfig();
 	if (!cfg.url || probing) return;
@@ -187,14 +189,19 @@ async function autoProbe(
 	try {
 		ctx.ui.notify(`OmniRoute: probing thinking levels for ${model.id}…`, "info");
 		const map = await probeLevels(cfg.url, cfg.apiKey, model.id);
-		if (map && applyProbe(pi, model.id, map)) {
+		if (!map) {
+			ctx.ui.notify(`OmniRoute: probe inconclusive for ${model.id} (baseline request failed)`, "warning");
+			return;
+		}
+		if (applyProbe(ctx.modelRegistry, model.id, map)) {
 			// Patch the live session model object too — the UI (footer, cycling,
 			// settings selector) reads thinkingLevelMap off it at call time.
 			model.thinkingLevelMap = map;
 			ctx.ui.notify(`OmniRoute: thinking map saved for ${model.id}`, "info");
-		} else if (!map) {
-			ctx.ui.notify(`OmniRoute: probe inconclusive for ${model.id} (baseline request failed)`, "warning");
 		}
+	} catch {
+		// Never crash pi over a failed probe (e.g. stale ctx after /reload);
+		// the map will be picked up from models.json at next startup.
 	} finally {
 		probing = false;
 	}
@@ -221,7 +228,7 @@ export default function (pi: ExtensionAPI) {
 
 	// Probe thinking levels whenever an omniroute model without a map is selected.
 	pi.on("model_select", async (event, ctx) => {
-		void autoProbe(pi, event.model, ctx);
+		void autoProbe(ctx, event.model);
 	});
 
 	pi.registerCommand("omni", {
