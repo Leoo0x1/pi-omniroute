@@ -185,12 +185,12 @@ let probing = false;
 /** Auto-probe the selected model if it's an omniroute model without a thinkingLevelMap. */
 async function autoProbe(
 	pi: ExtensionAPI,
-	ctx: { getModel(): { provider: string; id: string; thinkingLevelMap?: unknown } | undefined; ui: { notify(msg: string, level?: string): void } },
+	model: { provider: string; id: string; thinkingLevelMap?: unknown },
+	ctx: { ui: { notify(msg: string, level?: string): void } },
 ): Promise<void> {
 	const cfg = loadConfig();
 	if (!cfg.url || probing) return;
-	const model = ctx.getModel();
-	if (!model || model.provider !== PROVIDER || model.thinkingLevelMap) return;
+	if (model.provider !== PROVIDER || model.thinkingLevelMap) return;
 	probing = true;
 	try {
 		ctx.ui.notify(`OmniRoute: probing thinking levels for ${model.id}…`, "info");
@@ -225,8 +225,8 @@ export default function (pi: ExtensionAPI) {
 	void sync(pi);
 
 	// Probe thinking levels whenever an omniroute model without a map is selected.
-	pi.on("model_select", async (_event, ctx) => {
-		void autoProbe(pi, ctx);
+	pi.on("model_select", async (event, ctx) => {
+		void autoProbe(pi, event.model, ctx);
 	});
 
 	pi.registerCommand("omni", {
