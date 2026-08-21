@@ -73,16 +73,8 @@ function toModelDef(m: CatalogModel): Record<string, unknown> {
 	if (m.context_length) def.contextWindow = m.context_length;
 	if (m.max_output_tokens) def.maxTokens = m.max_output_tokens;
 	if (m.input_modalities?.includes("image")) def.input = ["text", "image"];
-	// effort_tiers uses "none" where pi uses "off"; unsupported levels get null.
-	const tiers = m.capabilities?.effort_tiers;
-	if (Array.isArray(tiers)) {
-		const supported = new Set(tiers.map((t) => (t === "none" ? "off" : t)));
-		const map: Partial<Record<(typeof PI_LEVELS)[number], null>> = {};
-		for (const level of PI_LEVELS) {
-			if (!supported.has(level)) map[level] = null;
-		}
-		if (Object.keys(map).length > 0) def.thinkingLevelMap = map;
-	}
+	// thinkingLevelMap is intentionally not derived here — it gets probed and
+	// written when the model is first selected.
 	return def;
 }
 
